@@ -2,25 +2,28 @@
 #define _INCLUDE_SOURCEMOD_EXTENSION_PROPER_H_
 
 #include "smsdk_ext.h"
-#include <IYYJSONManager.h>
+#include <IJsonManager.h>
 #include <IXWebSocket.h>
 #include <IXWebSocketServer.h>
 #include <IXHttpClient.h>
-#include <task_context.h>
-#include <ws_client.h>
-#include <ws_server.h>
-#include <http_request.h>
 #include <queue.h>
 #include <random>
+
+class ITaskContext
+{
+public:
+	virtual void OnCompleted() = 0;
+	virtual void* GetOwner() { return nullptr; }  // Returns the owner object (e.g., WebSocketClient*)
+	virtual ~ITaskContext() {}
+};
 
 class WebsocketExtension : public SDKExtension
 {
 public:
 	virtual bool SDK_OnLoad(char *error, size_t maxlength, bool late);
 	virtual void SDK_OnUnload();
-	virtual void SDK_OnAllLoaded();
-	public:
-		void AddTaskToQueue(ITaskContext *context);
+	virtual void SDK_OnDependenciesDropped();
+	IJsonManager* GetJsonManager();
 };
 
 class WsClientHandler : public IHandleTypeDispatch
@@ -47,7 +50,7 @@ extern WsClientHandler g_WsClientHandler;
 extern WsServerHandler g_WsServerHandler;
 extern HttpHandler g_HttpHandler;
 extern ThreadSafeQueue<ITaskContext *> g_TaskQueue;
-extern IYYJSONManager *g_pYYJSONManager;
+extern IJsonManager *g_pJsonManager;
 
 extern const sp_nativeinfo_t ws_natives[];
 extern const sp_nativeinfo_t ws_natives_server[];

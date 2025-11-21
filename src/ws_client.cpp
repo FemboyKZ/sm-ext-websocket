@@ -1,8 +1,8 @@
-#include "extension.h"
+#include "ws_client.h"
 
 WebSocketClient::WebSocketClient(ix::WebSocket* existingSocket) : m_webSocket(existingSocket) {}
 
-WebSocketClient::WebSocketClient(const char* url, uint8_t type) 
+WebSocketClient::WebSocketClient(const char* url, uint8_t type)
 {
 	m_webSocket = new ix::WebSocket();
 	m_webSocket->setUrl(url);
@@ -22,7 +22,10 @@ WebSocketClient::WebSocketClient(const char* url, uint8_t type)
 			}
 			case ix::WebSocketMessageType::Open:
 			{
-				m_headers = msg->openInfo.headers;
+				{
+					std::lock_guard<std::mutex> lock(m_headersMutex);
+					m_headers = msg->openInfo.headers;
+				}
 				OnOpen(msg->openInfo);
 				break;
 			}
@@ -40,9 +43,29 @@ WebSocketClient::WebSocketClient(const char* url, uint8_t type)
 	});
 }
 
-WebSocketClient::~WebSocketClient() 
+WebSocketClient::~WebSocketClient()
 {
-	if (!m_keepConnecting) m_webSocket->stop();
+	if (!m_keepConnecting) {
+		m_webSocket->stop();
+		delete m_webSocket;
+	}
+
+	// Drain the queue for tasks belonging to this client
+	ITaskContext* context = nullptr;
+	std::vector<ITaskContext*> other_tasks;
+
+	while (g_TaskQueue.TryPop(context)) {
+		if (context && context->GetOwner() == this) {
+			context->OnCompleted();
+			delete context;
+		} else if (context) {
+			other_tasks.push_back(context);
+		}
+	}
+
+	for (auto task : other_tasks) {
+		g_TaskQueue.Push(task);
+	}
 
 	if (pMessageForward) forwards->ReleaseForward(pMessageForward);
 	if (pOpenForward) forwards->ReleaseForward(pOpenForward);
@@ -55,7 +78,7 @@ bool WebSocketClient::IsConnected()
 	return m_webSocket->getReadyState() == ix::ReadyState::Open;
 }
 
-void WebSocketClient::OnMessage(const std::string& message) 
+void WebSocketClient::OnMessage(const std::string& message)
 {
 	if (!pMessageForward || !pMessageForward->GetFunctionCount())
 	{
@@ -63,10 +86,10 @@ void WebSocketClient::OnMessage(const std::string& message)
 	}
 
 	WsMessageTaskContext *context = new WsMessageTaskContext(this, message);
-	g_WebsocketExt.AddTaskToQueue(context);
+	g_TaskQueue.Push(context);
 }
 
-void WebSocketClient::OnOpen(ix::WebSocketOpenInfo openInfo) 
+void WebSocketClient::OnOpen(ix::WebSocketOpenInfo openInfo)
 {
 	if (!pOpenForward || !pOpenForward->GetFunctionCount())
 	{
@@ -74,10 +97,10 @@ void WebSocketClient::OnOpen(ix::WebSocketOpenInfo openInfo)
 	}
 
 	WsOpenTaskContext *context = new WsOpenTaskContext(this, openInfo);
-	g_WebsocketExt.AddTaskToQueue(context);
+	g_TaskQueue.Push(context);
 }
 
-void WebSocketClient::OnClose(ix::WebSocketCloseInfo closeInfo) 
+void WebSocketClient::OnClose(ix::WebSocketCloseInfo closeInfo)
 {
 	if (!pCloseForward || !pCloseForward->GetFunctionCount())
 	{
@@ -85,10 +108,10 @@ void WebSocketClient::OnClose(ix::WebSocketCloseInfo closeInfo)
 	}
 
 	WsCloseTaskContext *context = new WsCloseTaskContext(this, closeInfo);
-	g_WebsocketExt.AddTaskToQueue(context);
+	g_TaskQueue.Push(context);
 }
 
-void WebSocketClient::OnError(ix::WebSocketErrorInfo errorInfo) 
+void WebSocketClient::OnError(ix::WebSocketErrorInfo errorInfo)
 {
 	if (!pErrorForward || !pErrorForward->GetFunctionCount())
 	{
@@ -96,7 +119,7 @@ void WebSocketClient::OnError(ix::WebSocketErrorInfo errorInfo)
 	}
 
 	WsErrorTaskContext *context = new WsErrorTaskContext(this, errorInfo);
-	g_WebsocketExt.AddTaskToQueue(context);
+	g_TaskQueue.Push(context);
 }
 
 void WsMessageTaskContext::OnCompleted()
@@ -105,7 +128,7 @@ void WsMessageTaskContext::OnCompleted()
 
 	switch (m_client->m_callback_type)
 	{
-		case Websocket_STRING:
+		case WebSocket_STRING:
 		{
 			m_client->pMessageForward->PushCell(m_client->m_websocket_handle);
 			m_client->pMessageForward->PushString(m_message.c_str());
@@ -115,22 +138,29 @@ void WsMessageTaskContext::OnCompleted()
 		}
 		case WebSocket_JSON:
 		{
-			char error[256];
-			YYJSONValue* pYYJSONValue = g_pYYJSONManager->ParseJSON(m_message.c_str(), false, false, 0, error, sizeof(error));
+			IJsonManager* pJsonManager = g_WebsocketExt.GetJsonManager();
+			if (!pJsonManager)
+			{
+				smutils->LogError(myself, "JSON extension not loaded, cannot process JSON message");
+				return;
+			}
 
-			if (!pYYJSONValue)
+			char error[JSON_ERROR_BUFFER_SIZE];
+			JsonValue* pJsonValue = pJsonManager->ParseJSON(m_message.c_str(), false, false, 0, error, sizeof(error));
+
+			if (!pJsonValue)
 			{
 				smutils->LogError(myself, "parse JSON message error: %s", error);
 				return;
 			}
 
 			HandleError err;
-			HandleSecurity pSec(nullptr, myself->GetIdentity());
-			Handle_t jsonHandle = handlesys->CreateHandleEx(g_pYYJSONManager->GetHandleType(), pYYJSONValue, &pSec, nullptr, &err);
+			HandleSecurity pSec(myself->GetIdentity(), myself->GetIdentity());
+			Handle_t jsonHandle = handlesys->CreateHandleEx(pJsonManager->GetJsonHandleType(), pJsonValue, &pSec, nullptr, &err);
 
 			if (!jsonHandle)
 			{
-				g_pYYJSONManager->Release(pYYJSONValue);
+				pJsonManager->Release(pJsonValue);
 				smutils->LogError(myself, "Could not create JSON handle (error %d)", err);
 				return;
 			}

@@ -1,9 +1,12 @@
+#ifndef WEBSOCKETEXTENSION_WS_CLIENT_H
+#define WEBSOCKETEXTENSION_WS_CLIENT_H
+
 #include "extension.h"
 
 enum
 {
 	WebSocket_JSON,
-	Websocket_STRING,
+	WebSocket_STRING,
 };
 
 class WebSocketClient
@@ -27,6 +30,7 @@ public:
 
 	uint8_t m_callback_type;
 	ix::WebSocketHttpHeaders m_headers;
+	std::mutex m_headersMutex;
 	ix::WebSocketHttpHeaders m_extraHeaders;
 	bool m_keepConnecting = false;
 
@@ -39,10 +43,11 @@ public:
 class WsMessageTaskContext : public ITaskContext
 {
 public:
-	WsMessageTaskContext(WebSocketClient* client, const std::string& message) 
+	WsMessageTaskContext(WebSocketClient* client, const std::string& message)
 		: m_client(client), m_message(message) {}
 
 	virtual void OnCompleted() override;
+	virtual void* GetOwner() override { return m_client; }
 
 private:
 	WebSocketClient* m_client;
@@ -52,10 +57,11 @@ private:
 class WsOpenTaskContext : public ITaskContext
 {
 public:
-	WsOpenTaskContext(WebSocketClient* client, ix::WebSocketOpenInfo openInfo) 
+	WsOpenTaskContext(WebSocketClient* client, ix::WebSocketOpenInfo openInfo)
 		: m_client(client), m_openInfo(openInfo) {}
 
 	virtual void OnCompleted() override;
+	virtual void* GetOwner() override { return m_client; }
 
 private:
 	WebSocketClient* m_client;
@@ -65,10 +71,11 @@ private:
 class WsCloseTaskContext : public ITaskContext
 {
 public:
-	WsCloseTaskContext(WebSocketClient* client, ix::WebSocketCloseInfo closeInfo) 
+	WsCloseTaskContext(WebSocketClient* client, ix::WebSocketCloseInfo closeInfo)
 		: m_client(client), m_closeInfo(closeInfo) {}
 
 	virtual void OnCompleted() override;
+	virtual void* GetOwner() override { return m_client; }
 
 private:
 	WebSocketClient* m_client;
@@ -78,12 +85,14 @@ private:
 class WsErrorTaskContext : public ITaskContext
 {
 public:
-	WsErrorTaskContext(WebSocketClient* client, ix::WebSocketErrorInfo errorInfo) 
+	WsErrorTaskContext(WebSocketClient* client, ix::WebSocketErrorInfo errorInfo)
 		: m_client(client), m_errorInfo(errorInfo) {}
 
 	virtual void OnCompleted() override;
+	virtual void* GetOwner() override { return m_client; }
 
 private:
 	WebSocketClient* m_client;
 	ix::WebSocketErrorInfo m_errorInfo;
 };
+#endif // WEBSOCKETEXTENSION_WS_CLIENT_H

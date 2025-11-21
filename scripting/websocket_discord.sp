@@ -90,7 +90,7 @@ Action discord_disconnect(int args)
   }
 }
 */
-void onMessage(WebSocket ws, const YYJSON message, int wireSize)
+void onMessage(WebSocket ws, const JSON message, int wireSize)
 {
   int opcode = message.PtrGetInt("/op");
 
@@ -145,7 +145,7 @@ void onOpen(WebSocket ws)
 {
   PrintToServer("onOpen: %x", ws);
 
-  YYJSONObject payload = new YYJSONObject();
+  JSONObject payload = new JSONObject();
   payload.SetInt("op", 2);
   payload.PtrSetString("/d/token", g_sDiscordToken);
   payload.PtrSetString("/d/properties/$os", "linux");
@@ -168,7 +168,7 @@ Action Timer_SendHeartbeat(Handle timer)
 
   PrintToServer("SendHeartbeat");
 
-  YYJSONObject heartbeat = new YYJSONObject();
+  JSONObject heartbeat = new JSONObject();
   heartbeat.SetInt("op", 1);
   heartbeat.SetNull("d");
   g_hWebSocket.WriteJSON(heartbeat);

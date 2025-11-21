@@ -1,3 +1,6 @@
+#ifndef WEBSOCKETEXTENSION_WS_SERVER_H
+#define WEBSOCKETEXTENSION_WS_SERVER_H
+
 #include "extension.h"
 
 class WebSocketServer
@@ -46,11 +49,12 @@ public:
 class WsServerMessageTaskContext : public ITaskContext
 {
 public:
-	WsServerMessageTaskContext(WebSocketServer* server, const std::string& message, 
-		std::shared_ptr<ix::ConnectionState> connectionState, ix::WebSocket* client) 
+	WsServerMessageTaskContext(WebSocketServer* server, const std::string& message,
+		std::shared_ptr<ix::ConnectionState> connectionState, ix::WebSocket* client)
 		: m_server(server), m_message(message), m_connectionState(connectionState), m_client(client) {}
 
 	virtual void OnCompleted() override;
+	virtual void* GetOwner() override { return m_server; }
 
 private:
 	WebSocketServer* m_server;
@@ -62,11 +66,12 @@ private:
 class WsServerOpenTaskContext : public ITaskContext
 {
 public:
-	WsServerOpenTaskContext(WebSocketServer* server, ix::WebSocketOpenInfo openInfo, 
-		std::shared_ptr<ix::ConnectionState> connectionState) 
+	WsServerOpenTaskContext(WebSocketServer* server, ix::WebSocketOpenInfo openInfo,
+		std::shared_ptr<ix::ConnectionState> connectionState)
 		: m_server(server), m_openInfo(openInfo), m_connectionState(connectionState) {}
 
 	virtual void OnCompleted() override;
+	virtual void* GetOwner() override { return m_server; }
 
 private:
 	WebSocketServer* m_server;
@@ -77,11 +82,12 @@ private:
 class WsServerCloseTaskContext : public ITaskContext
 {
 public:
-	WsServerCloseTaskContext(WebSocketServer* server, ix::WebSocketCloseInfo closeInfo, 
-		std::shared_ptr<ix::ConnectionState> connectionState) 
+	WsServerCloseTaskContext(WebSocketServer* server, ix::WebSocketCloseInfo closeInfo,
+		std::shared_ptr<ix::ConnectionState> connectionState)
 		: m_server(server), m_closeInfo(closeInfo), m_connectionState(connectionState) {}
 
 	virtual void OnCompleted() override;
+	virtual void* GetOwner() override { return m_server; }
 
 private:
 	WebSocketServer* m_server;
@@ -92,14 +98,16 @@ private:
 class WsServerErrorTaskContext : public ITaskContext
 {
 public:
-	WsServerErrorTaskContext(WebSocketServer* server, ix::WebSocketErrorInfo errorInfo, 
-		std::shared_ptr<ix::ConnectionState> connectionState) 
+	WsServerErrorTaskContext(WebSocketServer* server, ix::WebSocketErrorInfo errorInfo,
+		std::shared_ptr<ix::ConnectionState> connectionState)
 		: m_server(server), m_errorInfo(errorInfo), m_connectionState(connectionState) {}
 
 	virtual void OnCompleted() override;
+	virtual void* GetOwner() override { return m_server; }
 
 private:
 	WebSocketServer* m_server;
 	ix::WebSocketErrorInfo m_errorInfo;
 	std::shared_ptr<ix::ConnectionState> m_connectionState;
 };
+#endif // WEBSOCKETEXTENSION_WS_SERVER_H

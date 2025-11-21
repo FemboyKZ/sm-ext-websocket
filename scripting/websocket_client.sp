@@ -51,7 +51,7 @@ void onClose(WebSocket ws, int code, const char[] reason)
   PrintToServer("onClose: %d, %s", code, reason);
 }
 
-void onMessage(WebSocket ws, const YYJSON message, int wireSize)
+void onMessage(WebSocket ws, const JSON message, int wireSize)
 {
   char[] buffer = new char[wireSize];
   message.ToString(buffer, wireSize);

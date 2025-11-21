@@ -1,7 +1,8 @@
-#include "extension.h"
+#include "ws_server.h"
+#include "ws_client.h"
 
 WebSocketServer::WebSocketServer(const std::string& host, int port, int addressFamily, int pingInterval) : m_webSocketServer(
-	port, 
+	port,
 	host,
 	ix::SocketServer::kDefaultTcpBacklog,
 	ix::SocketServer::kDefaultMaxConnections,
@@ -36,9 +37,26 @@ WebSocketServer::WebSocketServer(const std::string& host, int port, int addressF
 	});
 }
 
-WebSocketServer::~WebSocketServer() 
+WebSocketServer::~WebSocketServer()
 {
 	m_webSocketServer.stop();
+
+	// Drain the queue for tasks belonging to this server
+	ITaskContext* context = nullptr;
+	std::vector<ITaskContext*> other_tasks;
+
+	while (g_TaskQueue.TryPop(context)) {
+		if (context && context->GetOwner() == this) {
+			context->OnCompleted();
+			delete context;
+		} else if (context) {
+			other_tasks.push_back(context);
+		}
+	}
+
+	for (auto task : other_tasks) {
+		g_TaskQueue.Push(task);
+	}
 
 	if (pMessageForward) forwards->ReleaseForward(pMessageForward);
 	if (pOpenForward) forwards->ReleaseForward(pOpenForward);
@@ -46,7 +64,7 @@ WebSocketServer::~WebSocketServer()
 	if (pErrorForward) forwards->ReleaseForward(pErrorForward);
 }
 
-void WebSocketServer::OnMessage(const std::string& message, std::shared_ptr<ix::ConnectionState> connectionState, ix::WebSocket* client) 
+void WebSocketServer::OnMessage(const std::string& message, std::shared_ptr<ix::ConnectionState> connectionState, ix::WebSocket* client)
 {
 	if (!pMessageForward || !pMessageForward->GetFunctionCount())
 	{
@@ -54,10 +72,10 @@ void WebSocketServer::OnMessage(const std::string& message, std::shared_ptr<ix::
 	}
 
 	WsServerMessageTaskContext *context = new WsServerMessageTaskContext(this, message, connectionState, client);
-	g_WebsocketExt.AddTaskToQueue(context);
+	g_TaskQueue.Push(context);
 }
 
-void WebSocketServer::OnOpen(ix::WebSocketOpenInfo openInfo, std::shared_ptr<ix::ConnectionState> connectionState) 
+void WebSocketServer::OnOpen(ix::WebSocketOpenInfo openInfo, std::shared_ptr<ix::ConnectionState> connectionState)
 {
 	if (!pOpenForward || !pOpenForward->GetFunctionCount())
 	{
@@ -65,10 +83,10 @@ void WebSocketServer::OnOpen(ix::WebSocketOpenInfo openInfo, std::shared_ptr<ix:
 	}
 
 	WsServerOpenTaskContext *context = new WsServerOpenTaskContext(this, openInfo, connectionState);
-	g_WebsocketExt.AddTaskToQueue(context);
+	g_TaskQueue.Push(context);
 }
 
-void WebSocketServer::OnClose(ix::WebSocketCloseInfo closeInfo, std::shared_ptr<ix::ConnectionState> connectionState) 
+void WebSocketServer::OnClose(ix::WebSocketCloseInfo closeInfo, std::shared_ptr<ix::ConnectionState> connectionState)
 {
 	if (!pCloseForward || !pCloseForward->GetFunctionCount())
 	{
@@ -76,10 +94,10 @@ void WebSocketServer::OnClose(ix::WebSocketCloseInfo closeInfo, std::shared_ptr<
 	}
 
 	WsServerCloseTaskContext *context = new WsServerCloseTaskContext(this, closeInfo, connectionState);
-	g_WebsocketExt.AddTaskToQueue(context);
+	g_TaskQueue.Push(context);
 }
 
-void WebSocketServer::OnError(ix::WebSocketErrorInfo errorInfo, std::shared_ptr<ix::ConnectionState> connectionState) 
+void WebSocketServer::OnError(ix::WebSocketErrorInfo errorInfo, std::shared_ptr<ix::ConnectionState> connectionState)
 {
 	if (!pErrorForward || !pErrorForward->GetFunctionCount())
 	{
@@ -87,7 +105,7 @@ void WebSocketServer::OnError(ix::WebSocketErrorInfo errorInfo, std::shared_ptr<
 	}
 
 	WsServerErrorTaskContext *context = new WsServerErrorTaskContext(this, errorInfo, connectionState);
-	g_WebsocketExt.AddTaskToQueue(context);
+	g_TaskQueue.Push(context);
 }
 
 void WebSocketServer::broadcastMessage(const std::string& message) {
@@ -96,7 +114,7 @@ void WebSocketServer::broadcastMessage(const std::string& message) {
 	for (const auto& client : clients)
 	{
 		client.first->send(message);
-	} 
+	}
 }
 
 bool WebSocketServer::sendToClient(const std::string& clientId, const std::string& message) {

@@ -41,7 +41,7 @@ methodmap HttpRequest < Handle
   * @param value       Value to pass to the callback
   * @return            True if the request was sent successfully, false otherwise
   */
-  public native bool PostJson(const YYJSON json, ResponseCallback fResponse, any value = 0);
+  public native bool PostJson(const JSON json, ResponseCallback fResponse, any value = 0);
 
   /**
   * Performs a POST request with accumulated form parameters
@@ -62,7 +62,7 @@ methodmap HttpRequest < Handle
   * @param value       Value to pass to the callback
   * @return            True if the request was sent successfully, false otherwise
   */
-  public native bool PutJson(const YYJSON json, ResponseCallback fResponse, any value = 0);
+  public native bool PutJson(const JSON json, ResponseCallback fResponse, any value = 0);
 
   /**
   * Performs a PATCH request with JSON body
@@ -73,7 +73,7 @@ methodmap HttpRequest < Handle
   * @param value       Value to pass to the callback
   * @return            True if the request was sent successfully, false otherwise
   */
-  public native bool PatchJson(const YYJSON json, ResponseCallback fResponse, any value = 0);
+  public native bool PatchJson(const JSON json, ResponseCallback fResponse, any value = 0);
 
   /**
   * Performs a DELETE request

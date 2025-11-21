@@ -9,7 +9,7 @@ enum WebsocketState
 enum WebsocketType
 {
   WebSocket_JSON,
-  Websocket_STRING
+  WebSocket_STRING
 }
 
 enum AddressFamily {
@@ -40,7 +40,7 @@ typeset WebsocketCallback
   * @param data              JSON data
   * @param wireSize          size of the message on the wire (including null terminator)
   */
-  function void (WebSocket ws, const YYJSON data, int wireSize);
+  function void (WebSocket ws, const JSON data, int wireSize);
 
   /**
   * OnClose - Called when the WebSocket connection is closed
@@ -63,13 +63,13 @@ methodmap WebSocket < Handle
 {
   /**
   * Create New WebSocket Client
-  * 
+  *
   * @note All callbacks need to be set before client connect
   *
   * @param url               WebSocket server URL
   * @param type              JSON or string. Defaults to string
   */
-  public native WebSocket(const char[] url, WebsocketType type = Websocket_STRING);
+  public native WebSocket(const char[] url, WebsocketType type = WebSocket_STRING);
 
   /**
   * Set the callback for when a message is received
@@ -129,7 +129,7 @@ methodmap WebSocket < Handle
   *
   * @param data              JSON data to send
   */
-  public native void WriteJSON(const YYJSON data);
+  public native void WriteJSON(const JSON data);
 
   /**
   * Open the WebSocket connection
@@ -214,7 +214,7 @@ methodmap WebSocket < Handle
 
 /**
 * Typeset for WebsocketServerCallback
-* 
+*
 * A typeset defining various callback functions for WebSocket server events.
 */
 typeset WebsocketServerCallback
@@ -271,7 +271,7 @@ methodmap WebSocketServer < Handle
 {
   /**
   * Create New WebSocket server
-  * 
+  *
   * @note All callbacks need to be set before server startup
   *
   * @param host              host address for the server
@@ -372,7 +372,7 @@ methodmap WebSocketServer < Handle
   /**
   * Retrieves Per message deflate is enable
   */
-  public native void IsDeflateEnabled();
+  public native bool IsDeflateEnabled();
 
   /**
   * Maximum length of client IDs (including null terminator)

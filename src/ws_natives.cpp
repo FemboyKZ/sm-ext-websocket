@@ -1,4 +1,4 @@
-#include "extension.h"
+#include "ws_client.h"
 
 static WebSocketClient *GetWsPointer(IPluginContext *pContext, Handle_t Handle)
 {
@@ -39,10 +39,7 @@ static cell_t ws_SetMessageCallback(IPluginContext *pContext, const cell_t *para
 {
 	WebSocketClient *pWebSocketClient = GetWsPointer(pContext, params[1]);
 
-	if (!pWebSocketClient)
-	{
-		return 0;
-	}
+	if (!pWebSocketClient) return 0;
 
 	IPluginFunction *callback = pContext->GetFunctionById(params[2]);
 
@@ -64,10 +61,7 @@ static cell_t ws_SetOpenCallback(IPluginContext *pContext, const cell_t *params)
 {
 	WebSocketClient *pWebSocketClient = GetWsPointer(pContext, params[1]);
 
-	if (!pWebSocketClient)
-	{
-		return 0;
-	}
+	if (!pWebSocketClient) return 0;
 
 	IPluginFunction *callback = pContext->GetFunctionById(params[2]);
 
@@ -89,10 +83,7 @@ static cell_t ws_SetCloseCallback(IPluginContext *pContext, const cell_t *params
 {
 	WebSocketClient *pWebSocketClient = GetWsPointer(pContext, params[1]);
 
-	if (!pWebSocketClient)
-	{
-		return 0;
-	}
+	if (!pWebSocketClient) return 0;
 
 	IPluginFunction *callback = pContext->GetFunctionById(params[2]);
 
@@ -114,10 +105,7 @@ static cell_t ws_SetErrorCallback(IPluginContext *pContext, const cell_t *params
 {
 	WebSocketClient *pWebSocketClient = GetWsPointer(pContext, params[1]);
 
-	if (!pWebSocketClient)
-	{
-		return 0;
-	}
+	if (!pWebSocketClient) return 0;
 
 	IPluginFunction *callback = pContext->GetFunctionById(params[2]);
 
@@ -139,10 +127,7 @@ static cell_t ws_Connect(IPluginContext *pContext, const cell_t *params)
 {
 	WebSocketClient* pWebSocketClient = GetWsPointer(pContext, params[1]);
 
-	if (!pWebSocketClient)
-	{
-		return 0;
-	}
+	if (!pWebSocketClient) return 0;
 
 	if (pWebSocketClient->IsConnected())
 	{
@@ -159,10 +144,7 @@ static cell_t ws_Disconnect(IPluginContext *pContext, const cell_t *params)
 {
 	WebSocketClient* pWebSocketClient = GetWsPointer(pContext, params[1]);
 
-	if (!pWebSocketClient)
-	{
-		return 0;
-	}
+	if (!pWebSocketClient) return 0;
 
 	pWebSocketClient->m_webSocket->stop();
 
@@ -173,10 +155,7 @@ static cell_t ws_SetHeader(IPluginContext *pContext, const cell_t *params)
 {
 	WebSocketClient* pWebSocketClient = GetWsPointer(pContext, params[1]);
 
-	if (!pWebSocketClient)
-	{
-		return 0;
-	}
+	if (!pWebSocketClient) return 0;
 
 	char *key, *value;
 	pContext->LocalToString(params[2], &key);
@@ -192,14 +171,12 @@ static cell_t ws_GetHeader(IPluginContext *pContext, const cell_t *params)
 {
 	WebSocketClient* pWebSocketClient = GetWsPointer(pContext, params[1]);
 
-	if (!pWebSocketClient)
-	{
-		return 0;
-	}
+	if (!pWebSocketClient) return 0;
 
 	char *key;
 	pContext->LocalToString(params[2], &key);
 
+	std::lock_guard<std::mutex> lock(pWebSocketClient->m_headersMutex);
 	auto it = pWebSocketClient->m_headers.find(key);
 
 	if (it != pWebSocketClient->m_headers.end()) {
@@ -214,10 +191,7 @@ static cell_t ws_GetConnected(IPluginContext *pContext, const cell_t *params)
 {
 	WebSocketClient* pWebSocketClient = GetWsPointer(pContext, params[1]);
 
-	if (!pWebSocketClient)
-	{
-		return 0;
-	}
+	if (!pWebSocketClient) return 0;
 
 	return pWebSocketClient->IsConnected();
 }
@@ -226,10 +200,7 @@ static cell_t ws_GetReadyState(IPluginContext *pContext, const cell_t *params)
 {
 	WebSocketClient* pWebSocketClient = GetWsPointer(pContext, params[1]);
 
-	if (!pWebSocketClient)
-	{
-		return 0;
-	}
+	if (!pWebSocketClient) return 0;
 
 	return (cell_t)pWebSocketClient->m_webSocket->getReadyState();
 }
@@ -238,10 +209,7 @@ static cell_t ws_WriteString(IPluginContext *pContext, const cell_t *params)
 {
 	WebSocketClient* pWebSocketClient = GetWsPointer(pContext, params[1]);
 
-	if (!pWebSocketClient)
-	{
-		return 0;
-	}
+	if (!pWebSocketClient) return 0;
 
 	char *msg;
 	pContext->LocalToString(params[2], &msg);
@@ -253,29 +221,21 @@ static cell_t ws_WriteString(IPluginContext *pContext, const cell_t *params)
 
 static cell_t ws_WriteJSON(IPluginContext *pContext, const cell_t *params)
 {
+	IJsonManager* pJsonManager = g_WebsocketExt.GetJsonManager();
+	if (!pJsonManager)
+	{
+		return pContext->ThrowNativeError("JSON extension not loaded");
+	}
+
 	WebSocketClient* pWebSocketClient = GetWsPointer(pContext, params[1]);
-	YYJSONValue* pYYJSONValue = g_pYYJSONManager->GetFromHandle(pContext, params[2]);
+	JsonValue* pJsonValue = pJsonManager->GetValueFromHandle(pContext, params[2]);
 
-	if (!pWebSocketClient || !pYYJSONValue)
-	{
-		return 0;
-	}
+	if (!pWebSocketClient || !pJsonValue) return 0;
 
-	size_t json_size = g_pYYJSONManager->GetSerializedSize(pYYJSONValue);
-	if (json_size == 0)
-	{
-		return pContext->ThrowNativeError("Failed to get JSON serialized size");
-	}
+	char* json_str = pJsonManager->WriteToStringPtr(pJsonValue);
 
-	char* json_str = (char*)malloc(json_size);
 	if (!json_str)
 	{
-		return pContext->ThrowNativeError("Failed to allocate buffer for JSON string");
-	}
-
-	if (!g_pYYJSONManager->WriteToString(pYYJSONValue, json_str, json_size))
-	{
-		free(json_str);
 		return pContext->ThrowNativeError("Failed to serialize JSON to string");
 	}
 
@@ -289,10 +249,7 @@ static cell_t ws_AutoReconnect(IPluginContext *pContext, const cell_t *params)
 {
 	WebSocketClient* pWebSocketClient = GetWsPointer(pContext, params[1]);
 
-	if (!pWebSocketClient)
-	{
-		return 0;
-	}
+	if (!pWebSocketClient) return 0;
 
 	if (params[0] == 2) {
 		params[2] ? pWebSocketClient->m_webSocket->enableAutomaticReconnection() : pWebSocketClient->m_webSocket->disableAutomaticReconnection();
@@ -306,10 +263,7 @@ static cell_t ws_MinReconnectWait(IPluginContext *pContext, const cell_t *params
 {
 	WebSocketClient* pWebSocketClient = GetWsPointer(pContext, params[1]);
 
-	if (!pWebSocketClient)
-	{
-		return 0;
-	}
+	if (!pWebSocketClient) return 0;
 
 	if (!pWebSocketClient->m_webSocket->isAutomaticReconnectionEnabled())
 	{
@@ -329,10 +283,7 @@ static cell_t ws_MaxReconnectWait(IPluginContext *pContext, const cell_t *params
 {
 	WebSocketClient* pWebSocketClient = GetWsPointer(pContext, params[1]);
 
-	if (!pWebSocketClient)
-	{
-		return 0;
-	}
+	if (!pWebSocketClient) return 0;
 
 	if (!pWebSocketClient->m_webSocket->isAutomaticReconnectionEnabled())
 	{
@@ -352,10 +303,7 @@ static cell_t ws_SetHandshakeTimeout(IPluginContext *pContext, const cell_t *par
 {
 	WebSocketClient* pWebSocketClient = GetWsPointer(pContext, params[1]);
 
-	if (!pWebSocketClient)
-	{
-		return 0;
-	}
+	if (!pWebSocketClient) return 0;
 
 	pWebSocketClient->m_webSocket->setHandshakeTimeout(params[2]);
 	return 1;
@@ -365,10 +313,7 @@ static cell_t ws_PingInterval(IPluginContext *pContext, const cell_t *params)
 {
 	WebSocketClient* pWebSocketClient = GetWsPointer(pContext, params[1]);
 
-	if (!pWebSocketClient)
-	{
-		return 0;
-	}
+	if (!pWebSocketClient) return 0;
 
 	if (params[0] == 2) {
 		pWebSocketClient->m_webSocket->setPingInterval(params[2]);

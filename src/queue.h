@@ -1,11 +1,12 @@
-#include "extension.h"
+#ifndef WEBSOCKETEXTENSION_QUEUE_H
+#define WEBSOCKETEXTENSION_QUEUE_H
 
 /**
  * @brief A thread-safe queue implementation.
- * 
+ *
  * This class provides a queue that can be safely used across multiple threads.
  * It uses mutex and condition variable for synchronization.
- * 
+ *
  * @tparam T The type of elements stored in the queue.
  */
 template <class T>
@@ -33,7 +34,7 @@ public:
 
 	/**
 	 * @brief Pushes an item onto the queue.
-	 * 
+	 *
 	 * @param item The item to be pushed.
 	 */
 	void Push(T item) {
@@ -45,7 +46,7 @@ public:
 
 	/**
 	 * @brief Tries to pop an item from the queue.
-	 * 
+	 *
 	 * @param[out] item The popped item, if successful.
 	 * @return true if an item was popped, false if the queue was empty.
 	 */
@@ -61,9 +62,9 @@ public:
 
 	/**
 	 * @brief Waits for an item and pops it from the queue.
-	 * 
+	 *
 	 * This method will block until an item is available.
-	 * 
+	 *
 	 * @return The popped item.
 	 */
 	T WaitAndPop() {
@@ -84,7 +85,7 @@ public:
 
 	/**
 	 * @brief Checks if the queue is empty.
-	 * 
+	 *
 	 * @return true if the queue is empty, false otherwise.
 	 */
 	bool Empty() const {
@@ -94,7 +95,7 @@ public:
 
 	/**
 	 * @brief Gets the current size of the queue.
-	 * 
+	 *
 	 * @return The number of items in the queue.
 	 */
 	size_t Size() const {
@@ -102,3 +103,4 @@ public:
 		return queue.size();
 	}
 };
+#endif // WEBSOCKETEXTENSION_QUEUE_H

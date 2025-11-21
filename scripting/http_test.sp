@@ -32,7 +32,7 @@ Action http_post_json(int args)
   HttpRequest request = new HttpRequest("https://httpbin.org/post");
 
   // Create JSON payload
-  YYJSONObject json = new YYJSONObject();
+  JSONObject json = new JSONObject();
   json.SetString("name", "test");
   json.SetInt("age", 25);
   json.SetBool("active", true);
@@ -69,7 +69,7 @@ Action http_put(int args)
   HttpRequest request = new HttpRequest("https://httpbin.org/put");
 
   // Create JSON payload for PUT
-  YYJSONObject json = new YYJSONObject();
+  JSONObject json = new JSONObject();
   json.SetString("id", "123");
   json.SetString("name", "updated_name");
   json.SetBool("active", false);
@@ -89,7 +89,7 @@ Action http_patch(int args)
   HttpRequest request = new HttpRequest("https://httpbin.org/patch");
 
   // Create JSON payload for PATCH
-  YYJSONObject json = new YYJSONObject();
+  JSONObject json = new JSONObject();
   json.SetString("name", "partial_update");
 
   // Add custom headers
@@ -125,4 +125,4 @@ void OnHttpResponse(HttpRequest http, const char[] body, int statusCode, int bod
 
   // Print response body
   PrintToServer("Response Body: %s", body);
-} 
+}

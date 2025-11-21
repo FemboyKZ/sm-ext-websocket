@@ -3,7 +3,9 @@
 #endif
 #define _websocket_included
 
-#include <yyjson>
+#undef REQUIRE_EXTENSIONS
+#include <json>
+#define REQUIRE_EXTENSIONS
 #include <websocket/http>
 #include <websocket/ws>
 

@@ -13,10 +13,10 @@ This is a [SourceMod](http://www.sourcemod.net/) extension that provides some me
 * Support HTTP RESTful API with JSON and form data
 
 ## Dependencies
-* [sm-ext-yyjson](https://github.com/ProjectSky/sm-ext-yyjson) - Required for JSON parsing and generation
+* [sm-ext-json](https://github.com/ProjectSky/sm-ext-json) - **Optional**. Required only for JSON-related features. If not installed, TEXT-based WebSocket communication and non-JSON HTTP features will still work
 
 ## Installation
-1. Download and install [sm-ext-yyjson](https://github.com/ProjectSky/sm-ext-yyjson/releases) first
+1. **(Optional)** If you need JSON functionality, download and install [sm-ext-json](https://github.com/ProjectSky/sm-ext-json/releases) first
 2. Download this extension from [sm-ext-websocket](https://github.com/ProjectSky/sm-ext-websocket/releases)
 3. Extract the files to your SourceMod directory
 
@@ -42,7 +42,8 @@ ambuild
 - [x] WebSocket server support
 - [x] Windows support
 - [x] HTTP support
-- [x] Use sourcemod extension interface for JSON functionality instead of bundling yyjson library
+- [x] Use sourcemod extension interface for JSON functionality instead of bundling json library
+- [x] Allow JSON library as an optional dependency
 
 ## NOTES
 * Server will not process data during the hibernation. You can set sv_hibernate_when_empty to 0 to disable hibernation

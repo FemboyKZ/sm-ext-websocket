@@ -1,4 +1,4 @@
-#include "extension.h"
+#include "http_request.h"
 
 static HttpRequest *GetHttpPointer(IPluginContext *pContext, Handle_t Handle)
 {
@@ -59,10 +59,16 @@ static cell_t http_Get(IPluginContext *pContext, const cell_t *params)
 
 static cell_t http_PostJson(IPluginContext *pContext, const cell_t *params)
 {
-	HttpRequest *pHttpRequest = GetHttpPointer(pContext, params[1]);
-	YYJSONValue *pYYJSONValue = g_pYYJSONManager->GetFromHandle(pContext, params[2]);
+	IJsonManager* pJsonManager = g_WebsocketExt.GetJsonManager();
+	if (!pJsonManager)
+	{
+		return pContext->ThrowNativeError("JSON extension not loaded");
+	}
 
-	if (!pHttpRequest || !pYYJSONValue) return 0;
+	HttpRequest *pHttpRequest = GetHttpPointer(pContext, params[1]);
+	JsonValue *pJsonValue = pJsonManager->GetValueFromHandle(pContext, params[2]);
+
+	if (!pHttpRequest || !pJsonValue) return 0;
 
 	IPluginFunction *callback = pContext->GetFunctionById(params[3]);
 
@@ -70,7 +76,7 @@ static cell_t http_PostJson(IPluginContext *pContext, const cell_t *params)
 		forwards->ReleaseForward(pHttpRequest->pResponseForward);
 	}
 
-	pHttpRequest->pResponseForward = forwards->CreateForwardEx(nullptr, ET_Ignore, 5, nullptr, 
+	pHttpRequest->pResponseForward = forwards->CreateForwardEx(nullptr, ET_Ignore, 5, nullptr,
 		Param_Cell, Param_String, Param_Cell, Param_Cell, Param_Cell);
 	if (!pHttpRequest->pResponseForward || !pHttpRequest->pResponseForward->AddFunction(callback))
 	{
@@ -79,7 +85,7 @@ static cell_t http_PostJson(IPluginContext *pContext, const cell_t *params)
 	}
 
 	cell_t value = params[4];
-	return pHttpRequest->PostJson(pYYJSONValue, callback, value);
+	return pHttpRequest->PostJson(pJsonValue, callback, value);
 }
 
 static cell_t http_AppendFormParam(IPluginContext *pContext, const cell_t *params)
@@ -106,7 +112,7 @@ static cell_t http_PostForm(IPluginContext *pContext, const cell_t *params)
 		forwards->ReleaseForward(pHttpRequest->pResponseForward);
 	}
 
-	pHttpRequest->pResponseForward = forwards->CreateForwardEx(nullptr, ET_Ignore, 5, nullptr, 
+	pHttpRequest->pResponseForward = forwards->CreateForwardEx(nullptr, ET_Ignore, 5, nullptr,
 		Param_Cell, Param_String, Param_Cell, Param_Cell, Param_Cell);
 	if (!pHttpRequest->pResponseForward || !pHttpRequest->pResponseForward->AddFunction(callback))
 	{
@@ -120,10 +126,16 @@ static cell_t http_PostForm(IPluginContext *pContext, const cell_t *params)
 
 static cell_t http_PutJson(IPluginContext *pContext, const cell_t *params)
 {
-	HttpRequest *pHttpRequest = GetHttpPointer(pContext, params[1]);
-	YYJSONValue *pYYJSONValue = g_pYYJSONManager->GetFromHandle(pContext, params[2]);
+	IJsonManager* pJsonManager = g_WebsocketExt.GetJsonManager();
+	if (!pJsonManager)
+	{
+		return pContext->ThrowNativeError("JSON extension not loaded");
+	}
 
-	if (!pHttpRequest || !pYYJSONValue) return 0;
+	HttpRequest *pHttpRequest = GetHttpPointer(pContext, params[1]);
+	JsonValue *pJsonValue = pJsonManager->GetValueFromHandle(pContext, params[2]);
+
+	if (!pHttpRequest || !pJsonValue) return 0;
 
 	IPluginFunction *callback = pContext->GetFunctionById(params[3]);
 
@@ -131,7 +143,7 @@ static cell_t http_PutJson(IPluginContext *pContext, const cell_t *params)
 		forwards->ReleaseForward(pHttpRequest->pResponseForward);
 	}
 
-	pHttpRequest->pResponseForward = forwards->CreateForwardEx(nullptr, ET_Ignore, 5, nullptr, 
+	pHttpRequest->pResponseForward = forwards->CreateForwardEx(nullptr, ET_Ignore, 5, nullptr,
 		Param_Cell, Param_String, Param_Cell, Param_Cell, Param_Cell);
 	if (!pHttpRequest->pResponseForward || !pHttpRequest->pResponseForward->AddFunction(callback))
 	{
@@ -140,15 +152,21 @@ static cell_t http_PutJson(IPluginContext *pContext, const cell_t *params)
 	}
 
 	cell_t value = params[4];
-	return pHttpRequest->PutJson(pYYJSONValue, callback, value);
+	return pHttpRequest->PutJson(pJsonValue, callback, value);
 }
 
 static cell_t http_PatchJson(IPluginContext *pContext, const cell_t *params)
 {
-	HttpRequest *pHttpRequest = GetHttpPointer(pContext, params[1]);
-	YYJSONValue *pYYJSONValue = g_pYYJSONManager->GetFromHandle(pContext, params[2]);
+	IJsonManager* pJsonManager = g_WebsocketExt.GetJsonManager();
+	if (!pJsonManager)
+	{
+		return pContext->ThrowNativeError("JSON extension not loaded");
+	}
 
-	if (!pHttpRequest || !pYYJSONValue) return 0;
+	HttpRequest *pHttpRequest = GetHttpPointer(pContext, params[1]);
+	JsonValue *pJsonValue = pJsonManager->GetValueFromHandle(pContext, params[2]);
+
+	if (!pHttpRequest || !pJsonValue) return 0;
 
 	IPluginFunction *callback = pContext->GetFunctionById(params[3]);
 
@@ -156,7 +174,7 @@ static cell_t http_PatchJson(IPluginContext *pContext, const cell_t *params)
 		forwards->ReleaseForward(pHttpRequest->pResponseForward);
 	}
 
-	pHttpRequest->pResponseForward = forwards->CreateForwardEx(nullptr, ET_Ignore, 5, nullptr, 
+	pHttpRequest->pResponseForward = forwards->CreateForwardEx(nullptr, ET_Ignore, 5, nullptr,
 		Param_Cell, Param_String, Param_Cell, Param_Cell, Param_Cell);
 	if (!pHttpRequest->pResponseForward || !pHttpRequest->pResponseForward->AddFunction(callback))
 	{
@@ -165,7 +183,7 @@ static cell_t http_PatchJson(IPluginContext *pContext, const cell_t *params)
 	}
 
 	cell_t value = params[4];
-	return pHttpRequest->PatchJson(pYYJSONValue, callback, value);
+	return pHttpRequest->PatchJson(pJsonValue, callback, value);
 }
 
 static cell_t http_Delete(IPluginContext *pContext, const cell_t *params)
@@ -203,12 +221,18 @@ static cell_t http_SetBody(IPluginContext *pContext, const cell_t *params)
 
 static cell_t http_SetJsonBody(IPluginContext *pContext, const cell_t *params)
 {
+	IJsonManager* pJsonManager = g_WebsocketExt.GetJsonManager();
+	if (!pJsonManager)
+	{
+		return pContext->ThrowNativeError("JSON extension not loaded");
+	}
+
 	HttpRequest *pHttpRequest = GetHttpPointer(pContext, params[1]);
-	YYJSONValue *pYYJSONValue = g_pYYJSONManager->GetFromHandle(pContext, params[2]);
+	JsonValue *pJsonValue = pJsonManager->GetValueFromHandle(pContext, params[2]);
 
-	if (!pHttpRequest || !pYYJSONValue) return 0;
+	if (!pHttpRequest || !pJsonValue) return 0;
 
-	pHttpRequest->SetJsonBody(pYYJSONValue);
+	pHttpRequest->SetJsonBody(pJsonValue);
 	return 1;
 }
 
@@ -347,7 +371,7 @@ const sp_nativeinfo_t http_natives[] =
 	{"HttpRequest.PutJson", http_PutJson},
 	{"HttpRequest.PatchJson", http_PatchJson},
 	{"HttpRequest.Delete", http_Delete},
-	{"HttpRequest.AppendFormParam", http_AppendFormParam}, 
+	{"HttpRequest.AppendFormParam", http_AppendFormParam},
 	{"HttpRequest.SetBody", http_SetBody},
 	{"HttpRequest.SetJsonBody", http_SetJsonBody},
 	{"HttpRequest.AddHeader", http_AddHeader},

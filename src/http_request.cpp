@@ -1,11 +1,11 @@
-#include "extension.h"
+#include "http_request.h"
 
 HttpRequest::HttpRequest(const std::string &url) : m_httpclient(true)
 {
 	m_request = m_httpclient.createRequest(url);
 }
 
-HttpRequest::~HttpRequest() 
+HttpRequest::~HttpRequest()
 {
 	if (pResponseForward) forwards->ReleaseForward(pResponseForward);
 }
@@ -15,21 +15,19 @@ void HttpRequest::SetBody(const std::string &body)
 	m_request->body = body;
 }
 
-void HttpRequest::SetJsonBody(YYJSONValue* json)
+void HttpRequest::SetJsonBody(JsonValue* json)
 {
 	if (!json) return;
 
-	size_t json_size = g_pYYJSONManager->GetSerializedSize(json);
-	if (json_size == 0) return;
-
-	char* jsonStr = (char*)malloc(json_size);
-	if (!jsonStr) return;
-
-	if (!g_pYYJSONManager->WriteToString(json, jsonStr, json_size))
+	IJsonManager* pJsonManager = g_WebsocketExt.GetJsonManager();
+	if (!pJsonManager)
 	{
-		free(jsonStr);
+		smutils->LogError(myself, "JSON extension not loaded, cannot set JSON body");
 		return;
 	}
+
+	char* jsonStr = pJsonManager->WriteToStringPtr(json);
+	if (!jsonStr) return;
 
 	m_request->body = jsonStr;
 	m_request->extraHeaders["Content-Type"] = "application/json";
@@ -51,7 +49,7 @@ int HttpRequest::GetTimeout() const
 	return m_request->connectTimeout;
 }
 
-void HttpRequest::SetFollowRedirect(bool follow) 
+void HttpRequest::SetFollowRedirect(bool follow)
 {
 	m_request->followRedirects = follow;
 }
@@ -91,7 +89,7 @@ bool HttpRequest::GetVerbose() const
 	return m_request->verbose;
 }
 
-void HttpRequest::onResponse(const ix::HttpResponsePtr response, IPluginFunction *callback, cell_t value) 
+void HttpRequest::onResponse(const ix::HttpResponsePtr response, IPluginFunction *callback, cell_t value)
 {
 	if (!pResponseForward || !pResponseForward->GetFunctionCount())
 	{
@@ -104,12 +102,11 @@ void HttpRequest::onResponse(const ix::HttpResponsePtr response, IPluginFunction
 	}
 
 	HttpResponseTaskContext *context = new HttpResponseTaskContext(this, response, callback, value);
-	g_WebsocketExt.AddTaskToQueue(context);
+	g_TaskQueue.Push(context);
 }
 
 void HttpResponseTaskContext::OnCompleted()
 {
-	HandleError err;
 	HandleSecurity sec(nullptr, myself->GetIdentity());
 
 	m_client->pResponseForward->PushCell(m_client->m_httpclient_handle);
@@ -125,43 +122,43 @@ void HttpResponseTaskContext::OnCompleted()
 bool HttpRequest::Get(IPluginFunction *callback, cell_t value)
 {
 	m_request->verb = "GET";
-	return m_httpclient.performRequest(m_request, 
+	return m_httpclient.performRequest(m_request,
 		[this, callback, value](const ix::HttpResponsePtr& response) {
 			onResponse(response, callback, value);
 		});
 }
 
-bool HttpRequest::PostJson(YYJSONValue* json, IPluginFunction *callback, cell_t value)
+bool HttpRequest::PostJson(JsonValue* json, IPluginFunction *callback, cell_t value)
 {
 	if (!json) return false;
 
 	m_request->verb = "POST";
 	SetJsonBody(json);
-	return m_httpclient.performRequest(m_request, 
+	return m_httpclient.performRequest(m_request,
 		[this, callback, value](const ix::HttpResponsePtr& response) {
 			onResponse(response, callback, value);
 		});
 }
 
-bool HttpRequest::PutJson(YYJSONValue* json, IPluginFunction *callback, cell_t value)
+bool HttpRequest::PutJson(JsonValue* json, IPluginFunction *callback, cell_t value)
 {
 	if (!json) return false;
 
 	m_request->verb = "PUT";
 	SetJsonBody(json);
-	return m_httpclient.performRequest(m_request, 
+	return m_httpclient.performRequest(m_request,
 		[this, callback, value](const ix::HttpResponsePtr& response) {
 			onResponse(response, callback, value);
 		});
 }
 
-bool HttpRequest::PatchJson(YYJSONValue* json, IPluginFunction *callback, cell_t value)
+bool HttpRequest::PatchJson(JsonValue* json, IPluginFunction *callback, cell_t value)
 {
 	if (!json) return false;
 
 	m_request->verb = "PATCH";
 	SetJsonBody(json);
-	return m_httpclient.performRequest(m_request, 
+	return m_httpclient.performRequest(m_request,
 		[this, callback, value](const ix::HttpResponsePtr& response) {
 			onResponse(response, callback, value);
 		});
@@ -172,7 +169,7 @@ bool HttpRequest::PostForm(IPluginFunction *callback, cell_t value)
 	m_request->verb = "POST";
 	m_request->body = BuildFormData();
 	m_request->extraHeaders["Content-Type"] = "application/x-www-form-urlencoded";
-	return m_httpclient.performRequest(m_request, 
+	return m_httpclient.performRequest(m_request,
 		[this, callback, value](const ix::HttpResponsePtr& response) {
 			onResponse(response, callback, value);
 		});
@@ -181,7 +178,7 @@ bool HttpRequest::PostForm(IPluginFunction *callback, cell_t value)
 bool HttpRequest::Delete(IPluginFunction *callback, cell_t value)
 {
 	m_request->verb = "DELETE";
-	return m_httpclient.performRequest(m_request, 
+	return m_httpclient.performRequest(m_request,
 		[this, callback, value](const ix::HttpResponsePtr& response) {
 			onResponse(response, callback, value);
 		});
@@ -208,7 +205,7 @@ void HttpRequest::AppendFormParam(const std::string &key, const std::string &val
 	m_formParams[key] = value;
 }
 
-const std::string& HttpRequest::GetResponseHeader(const std::string& key) const 
+const std::string& HttpRequest::GetResponseHeader(const std::string& key) const
 {
 	static const std::string empty;
 	std::lock_guard<std::mutex> lock(m_headersMutex);
@@ -222,8 +219,8 @@ bool HttpRequest::HasResponseHeader(const std::string& key) const
 	return m_responseHeaders.find(key) != m_responseHeaders.end();
 }
 
-const ix::WebSocketHttpHeaders& HttpRequest::GetResponseHeaders() const 
-{ 
+const ix::WebSocketHttpHeaders& HttpRequest::GetResponseHeaders() const
+{
 	std::lock_guard<std::mutex> lock(m_headersMutex);
-	return m_responseHeaders; 
+	return m_responseHeaders;
 }

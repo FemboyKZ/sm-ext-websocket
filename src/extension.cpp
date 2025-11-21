@@ -1,4 +1,7 @@
 #include "extension.h"
+#include <ws_client.h>
+#include <ws_server.h>
+#include <http_request.h>
 
 #define MAX_PROCESS 10
 
@@ -11,7 +14,7 @@ WsServerHandler g_WsServerHandler;
 HttpHandler g_HttpHandler;
 
 ThreadSafeQueue<ITaskContext *> g_TaskQueue;
-IYYJSONManager* g_pYYJSONManager = nullptr;
+IJsonManager* g_pJsonManager = nullptr;
 
 static void OnGameFrame(bool simulating) {
 	int count = 0;
@@ -30,14 +33,9 @@ static void OnGameFrame(bool simulating) {
 	}
 }
 
-void WebsocketExtension::AddTaskToQueue(ITaskContext *context)
-{
-	g_TaskQueue.Push(context);
-}
-
 bool WebsocketExtension::SDK_OnLoad(char* error, size_t maxlen, bool late)
 {
-	sharesys->AddDependency(myself, "yyjson.ext", true, true);
+	sharesys->AddDependency(myself, "json.ext", false, true);
 
 	sharesys->AddNatives(myself, ws_natives);
 	sharesys->AddNatives(myself, ws_natives_server);
@@ -55,10 +53,18 @@ bool WebsocketExtension::SDK_OnLoad(char* error, size_t maxlen, bool late)
 	return true;
 }
 
-void WebsocketExtension::SDK_OnAllLoaded()
+void WebsocketExtension::SDK_OnDependenciesDropped()
 {
-	SM_GET_LATE_IFACE(YYJSONMANAGER, g_pYYJSONManager);
-	// handlesys->FindHandleType("YYJSON", &g_htJSON);
+	g_pJsonManager = nullptr;
+}
+
+IJsonManager* WebsocketExtension::GetJsonManager()
+{
+	if (!g_pJsonManager)
+	{
+		SM_GET_LATE_IFACE(JSONMANAGER, g_pJsonManager);
+	}
+	return g_pJsonManager;
 }
 
 void WebsocketExtension::SDK_OnUnload()

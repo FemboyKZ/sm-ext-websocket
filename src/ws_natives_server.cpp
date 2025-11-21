@@ -1,4 +1,4 @@
-#include "extension.h"
+#include "ws_server.h"
 
 static WebSocketServer *GetWsServerPointer(IPluginContext *pContext, Handle_t Handle)
 {
@@ -39,10 +39,7 @@ static cell_t ws_SetMessageCallback(IPluginContext *pContext, const cell_t *para
 {
 	WebSocketServer *pWebsocketServer = GetWsServerPointer(pContext, params[1]);
 
-	if (!pWebsocketServer)
-	{
-		return 0;
-	}
+	if (!pWebsocketServer) return 0;
 
 	IPluginFunction *callback = pContext->GetFunctionById(params[2]);
 
@@ -64,10 +61,7 @@ static cell_t ws_SetOpenCallback(IPluginContext *pContext, const cell_t *params)
 {
 	WebSocketServer *pWebsocketServer = GetWsServerPointer(pContext, params[1]);
 
-	if (!pWebsocketServer)
-	{
-		return 0;
-	}
+	if (!pWebsocketServer) return 0;
 
 	IPluginFunction *callback = pContext->GetFunctionById(params[2]);
 
@@ -89,10 +83,7 @@ static cell_t ws_SetCloseCallback(IPluginContext *pContext, const cell_t *params
 {
 	WebSocketServer *pWebsocketServer = GetWsServerPointer(pContext, params[1]);
 
-	if (!pWebsocketServer)
-	{
-		return 0;
-	}
+	if (!pWebsocketServer) return 0;
 
 	IPluginFunction *callback = pContext->GetFunctionById(params[2]);
 
@@ -114,10 +105,7 @@ static cell_t ws_SetErrorCallback(IPluginContext *pContext, const cell_t *params
 {
 	WebSocketServer *pWebsocketServer = GetWsServerPointer(pContext, params[1]);
 
-	if (!pWebsocketServer)
-	{
-		return 0;
-	}
+	if (!pWebsocketServer) return 0;
 
 	IPluginFunction *callback = pContext->GetFunctionById(params[2]);
 
@@ -139,10 +127,7 @@ static cell_t ws_Start(IPluginContext *pContext, const cell_t *params)
 {
 	WebSocketServer* pWebsocketServer = GetWsServerPointer(pContext, params[1]);
 
-	if (!pWebsocketServer)
-	{
-		return 0;
-	}
+	if (!pWebsocketServer) return 0;
 
 	auto res = pWebsocketServer->m_webSocketServer.listen();
 
@@ -161,10 +146,7 @@ static cell_t ws_Stop(IPluginContext *pContext, const cell_t *params)
 {
 	WebSocketServer* pWebsocketServer = GetWsServerPointer(pContext, params[1]);
 
-	if (!pWebsocketServer)
-	{
-		return 0;
-	}
+	if (!pWebsocketServer) return 0;
 
 	pWebsocketServer->m_webSocketServer.stop();
 
@@ -175,10 +157,7 @@ static cell_t ws_SendMessageToClient(IPluginContext *pContext, const cell_t *par
 {
 	WebSocketServer* pWebsocketServer = GetWsServerPointer(pContext, params[1]);
 
-	if (!pWebsocketServer)
-	{
-		return 0;
-	}
+	if (!pWebsocketServer) return 0;
 
 	char *clientId, *msg;
 	pContext->LocalToString(params[2], &clientId);
@@ -191,10 +170,7 @@ static cell_t ws_DisconnectClient(IPluginContext *pContext, const cell_t *params
 {
 	WebSocketServer* pWebsocketServer = GetWsServerPointer(pContext, params[1]);
 
-	if (!pWebsocketServer)
-	{
-		return 0;
-	}
+	if (!pWebsocketServer) return 0;
 
 	char *clientId;
 	pContext->LocalToString(params[2], &clientId);
@@ -206,10 +182,7 @@ static cell_t ws_BroadcastMessage(IPluginContext *pContext, const cell_t *params
 {
 	WebSocketServer* pWebsocketServer = GetWsServerPointer(pContext, params[1]);
 
-	if (!pWebsocketServer)
-	{
-		return 0;
-	}
+	if (!pWebsocketServer) return 0;
 
 	char *msg;
 	pContext->LocalToString(params[2], &msg);
@@ -223,10 +196,7 @@ static cell_t ws_GetClientsCount(IPluginContext *pContext, const cell_t *params)
 {
 	WebSocketServer* pWebsocketServer = GetWsServerPointer(pContext, params[1]);
 
-	if (!pWebsocketServer)
-	{
-		return 0;
-	}
+	if (!pWebsocketServer) return 0;
 
 	return pWebsocketServer->m_webSocketServer.getClients().size();
 }
@@ -235,10 +205,7 @@ static cell_t ws_SetOrGetPongEnable(IPluginContext *pContext, const cell_t *para
 {
 	WebSocketServer* pWebsocketServer = GetWsServerPointer(pContext, params[1]);
 
-	if (!pWebsocketServer)
-	{
-		return 0;
-	}
+	if (!pWebsocketServer) return 0;
 
 	if (params[0] == 2) {
 		params[2] ? pWebsocketServer->m_webSocketServer.enablePong() : pWebsocketServer->m_webSocketServer.disablePong();
@@ -252,10 +219,7 @@ static cell_t ws_DisableDeflate(IPluginContext *pContext, const cell_t *params)
 {
 	WebSocketServer* pWebsocketServer = GetWsServerPointer(pContext, params[1]);
 
-	if (!pWebsocketServer)
-	{
-		return 0;
-	}
+	if (!pWebsocketServer) return 0;
 
 	if (!pWebsocketServer->m_webSocketServer.isPerMessageDeflateEnabled())
 	{
@@ -271,10 +235,7 @@ static cell_t ws_IsDeflateEnabled(IPluginContext *pContext, const cell_t *params
 {
 	WebSocketServer* pWebsocketServer = GetWsServerPointer(pContext, params[1]);
 
-	if (!pWebsocketServer)
-	{
-		return 0;
-	}
+	if (!pWebsocketServer) return 0;
 
 	return pWebsocketServer->m_webSocketServer.isPerMessageDeflateEnabled();
 }
@@ -283,10 +244,7 @@ static cell_t ws_GetHeader(IPluginContext *pContext, const cell_t *params)
 {
 	WebSocketServer* pWebsocketServer = GetWsServerPointer(pContext, params[1]);
 
-	if (!pWebsocketServer)
-	{
-		return 0;
-	}
+	if (!pWebsocketServer) return 0;
 
 	char *clientId, *headerKey;
 	pContext->LocalToString(params[2], &clientId);
@@ -312,10 +270,7 @@ static cell_t ws_GetHeader(IPluginContext *pContext, const cell_t *params)
 static cell_t ws_GetClientIdByIndex(IPluginContext *pContext, const cell_t *params)
 {
 	WebSocketServer *pWebsocketServer = GetWsServerPointer(pContext, params[1]);
-	if (!pWebsocketServer)
-	{
-		return 0;
-	}
+	if (!pWebsocketServer) return 0;
 
 	cell_t index = params[2];
 	const auto& ids = pWebsocketServer->getClientIds();
