@@ -113,10 +113,16 @@ void HttpResponseTaskContext::OnCompleted()
 {
 	HandleSecurity sec(nullptr, myself->GetIdentity());
 
+	// When statusCode is 0, the request failed at the transport level.
+	// Pass errorMsg as the body so the plugin can see the actual failure reason.
+	const std::string& responseBody = (m_response->statusCode == 0 && !m_response->errorMsg.empty())
+		? m_response->errorMsg
+		: m_response->body;
+
 	m_client->pResponseForward->PushCell(m_client->m_httpclient_handle);
-	m_client->pResponseForward->PushString(m_response->body.c_str());
+	m_client->pResponseForward->PushString(responseBody.c_str());
 	m_client->pResponseForward->PushCell(m_response->statusCode);
-	m_client->pResponseForward->PushCell(m_response->body.length() + 1);
+	m_client->pResponseForward->PushCell(responseBody.length() + 1);
 	m_client->pResponseForward->PushCell(m_value);
 	m_client->pResponseForward->Execute(nullptr);
 
