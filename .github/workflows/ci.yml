@@ -6,6 +6,7 @@ on:
     branches:
       - "main"
     paths:
+      - ".github/workflows/ci.yml"
       - "src/**"
       - "third_party/**"
   pull_request:
@@ -20,16 +21,17 @@ jobs:
   build:
     name: build on ${{ matrix.os_short }}
     runs-on: ${{ matrix.os }}
+    container: ${{ matrix.container }}
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, ubuntu-22.04]
         include:
           - os: windows-latest
             os_short: win
 
-          - os: ubuntu-22.04
+          - os: ubuntu-latest
             os_short: linux
+            container: registry.gitlab.steamos.cloud/steamrt/sniper/sdk
 
     steps:
       - name: Prepare env
@@ -37,17 +39,8 @@ jobs:
         run: |
           echo "GITHUB_SHA_SHORT=${GITHUB_SHA::7}" >> $GITHUB_ENV
 
-      - name: Install (Linux)
-        if: runner.os == 'Linux'
-        run: |
-          sudo dpkg --add-architecture i386
-          sudo apt-get update
-          sudo apt-get install -y clang g++-multilib libssl-dev libssl-dev:i386
-          echo "CC=clang" >> $GITHUB_ENV
-          echo "CXX=clang++" >> $GITHUB_ENV
-
       - name: Getting SourceMod
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: alliedmodders/sourcemod
           ref: master
@@ -55,22 +48,34 @@ jobs:
           submodules: recursive
           fetch-depth: 1
 
-      - name: Setting up Python and AMBuild
-        uses: actions/setup-python@v5
+      - name: Install Python dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          apt-get update
+          apt-get install -y python3-pip python3-setuptools
+
+      - name: Setting up Python
+        if: runner.os == 'Windows'
+        uses: actions/setup-python@v6
         with:
-          python-version: '3.10'
-          cache: 'pip'
+          python-version: '3.12'
 
       - name: Install AMBuild
-        run: pip install git+https://github.com/alliedmodders/ambuild
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            /usr/bin/python3 -m pip install git+https://github.com/alliedmodders/ambuild
+          else
+            python3 -m pip install git+https://github.com/alliedmodders/ambuild
+          fi
 
       - name: Getting own repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           path: extension
           submodules: recursive
 
-      - uses: microsoft/setup-msbuild@v2
+      - uses: microsoft/setup-msbuild@v3
         if: runner.os == 'Windows'
         with:
           msbuild-architecture: x64
@@ -78,14 +83,15 @@ jobs:
 
       - name: Compiling ${{ github.event.repository.name }} files
         working-directory: extension
+        shell: bash
         run: |
-          mkdir build
-          cd build
-          python ../configure.py --enable-optimize --symbol-files --sm-path="${{ github.workspace }}/sourcemod" --targets=x64,x86
+          [ "$RUNNER_OS" = "Linux" ] && export PATH="/usr/bin:$PATH"
+          mkdir build && cd build
+          python3 ../configure.py --enable-optimize --symbol-files --sm-path="$GITHUB_WORKSPACE/sourcemod" --targets=x64,x86
           ambuild
 
       - name: Uploading package
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: sm-ext-websocket-${{ matrix.os_short }}-${{ env.GITHUB_SHA_SHORT }}
           path: extension/build/package
@@ -98,7 +104,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           path: extension
           sparse-checkout: |
@@ -118,7 +124,7 @@ jobs:
         run: echo "${{ github.event.head_commit.message }}" >> release_notes.md
 
       - name: Download all artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: artifacts
 
