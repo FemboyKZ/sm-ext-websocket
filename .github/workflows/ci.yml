@@ -18,38 +18,26 @@ permissions:
 
 jobs:
   build:
-    name: build on ${{ matrix.os_short }} (${{ matrix.sm.label }})
-    runs-on: ${{ matrix.os }}
+    name: build on ${{ matrix.platform.os_short }} (${{ matrix.sm.label }})
+    runs-on: ${{ matrix.platform.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, ubuntu-22.04]
+        platform:
+          - { os: windows-latest, os_short: win }
+          - { os: ubuntu-latest, os_short: steamrt3, image: "registry.gitlab.steamos.cloud/steamrt/sniper/sdk:latest" }
+          - { os: ubuntu-latest, os_short: steamrt4, image: "registry.gitlab.steamos.cloud/steamrt/steamrt4/sdk:latest" }
         sm:
           - label: sm1.13
             ref: master
           - label: sm1.12
             ref: "1.12-dev"
-        include:
-          - os: windows-latest
-            os_short: win
-
-          - os: ubuntu-22.04
-            os_short: linux
 
     steps:
       - name: Prepare env
         shell: bash
         run: |
           echo "GITHUB_SHA_SHORT=${GITHUB_SHA::7}" >> $GITHUB_ENV
-
-      - name: Install (Linux)
-        if: runner.os == 'Linux'
-        run: |
-          sudo dpkg --add-architecture i386
-          sudo apt-get update
-          sudo apt-get install -y clang g++-multilib libssl-dev libssl-dev:i386
-          echo "CC=clang" >> $GITHUB_ENV
-          echo "CXX=clang++" >> $GITHUB_ENV
 
       - name: Getting SourceMod
         uses: actions/checkout@v7
@@ -61,12 +49,14 @@ jobs:
           fetch-depth: 1
 
       - name: Setting up Python and AMBuild
+        if: runner.os == 'Windows'
         uses: actions/setup-python@v6
         with:
           python-version: '3.14'
           cache: 'pip'
 
       - name: Install AMBuild
+        if: runner.os == 'Windows'
         run: pip install git+https://github.com/alliedmodders/ambuild
 
       - name: Getting own repository
@@ -81,6 +71,7 @@ jobs:
           msbuild-architecture: x64
 
       - name: Compiling ${{ github.event.repository.name }} files
+        if: runner.os == 'Windows'
         working-directory: extension
         run: |
           mkdir build
@@ -88,10 +79,31 @@ jobs:
           python ../configure.py --enable-optimize --symbol-files --sm-path="${{ github.workspace }}/sourcemod" --targets=x64,x86
           ambuild
 
+      - name: Compiling ${{ github.event.repository.name }} files (${{ matrix.platform.os_short }})
+        if: runner.os == 'Linux'
+        run: |
+          docker run --rm \
+            -v "$GITHUB_WORKSPACE:/work" \
+            -w /work/extension \
+            -e CC=clang \
+            -e CXX=clang++ \
+            ${{ matrix.platform.image }} \
+            bash -ec '
+              if [ "${{ matrix.platform.os_short }}" = steamrt4 ]; then
+                apt-get update -y
+                apt-get install -y libssl-dev:i386
+              fi
+              git clone --depth 1 https://github.com/alliedmodders/ambuild.git /tmp/ambuild
+              (cd /tmp/ambuild && python3 setup.py install)
+              mkdir build && cd build
+              python3 ../configure.py --enable-optimize --symbol-files --sm-path=/work/sourcemod --targets=x64,x86
+              ambuild
+            '
+
       - name: Uploading package
         uses: actions/upload-artifact@v7
         with:
-          name: sm-ext-websocket-${{ matrix.os_short }}-${{ matrix.sm.label }}-${{ env.GITHUB_SHA_SHORT }}
+          name: sm-ext-websocket-${{ matrix.platform.os_short }}-${{ matrix.sm.label }}-${{ env.GITHUB_SHA_SHORT }}
           path: extension/build/package
           retention-days: 5
 
