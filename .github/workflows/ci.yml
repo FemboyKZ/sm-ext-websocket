@@ -20,8 +20,8 @@ jobs:
       fail-fast: false
       matrix:
         platform:
-          - { os: windows-latest, os_short: win }
-          - { os: ubuntu-latest, os_short: steamrt3, image: "registry.gitlab.steamos.cloud/steamrt/sniper/sdk:latest" }
+          - { os: windows-latest, os_short: windows }
+          - { os: ubuntu-latest, os_short: linux, image: "registry.gitlab.steamos.cloud/steamrt/sniper/sdk:latest" }
         sm:
           - label: sm1.13
             ref: master
