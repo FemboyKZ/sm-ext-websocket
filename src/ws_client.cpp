@@ -161,7 +161,7 @@ void WsMessageTaskContext::OnCompleted()
 
 			if (!jsonHandle)
 			{
-				pJsonManager->Release(pJsonValue);
+				pJsonManager->ReleaseJsonValue(pJsonValue);
 				smutils->LogError(myself, "Could not create JSON handle (error %d)", err);
 				return;
 			}

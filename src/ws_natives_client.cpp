@@ -301,7 +301,7 @@ static cell_t ws_WriteJSON(IPluginContext *pContext, const cell_t *params)
 	}
 
 	auto result = pWebSocketClient->m_webSocket->send(json_str);
-	free(json_str);
+	pJsonManager->ReleaseString(json_str);
 
 	return result.success ? 1 : 0;
 }

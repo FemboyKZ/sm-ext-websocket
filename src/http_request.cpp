@@ -35,7 +35,7 @@ void HttpRequest::SetJsonBody(JsonValue* json)
 
 	m_request->body = jsonStr;
 	m_request->extraHeaders["Content-Type"] = "application/json";
-	free(jsonStr);
+	pJsonManager->ReleaseString(jsonStr);
 }
 
 void HttpRequest::AddHeader(const std::string &key, const std::string &value)
