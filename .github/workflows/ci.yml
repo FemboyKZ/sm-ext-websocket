@@ -22,7 +22,6 @@ jobs:
         platform:
           - { os: windows-latest, os_short: win }
           - { os: ubuntu-latest, os_short: steamrt3, image: "registry.gitlab.steamos.cloud/steamrt/sniper/sdk:latest" }
-          - { os: ubuntu-latest, os_short: steamrt4, image: "registry.gitlab.steamos.cloud/steamrt/steamrt4/sdk:latest" }
         sm:
           - label: sm1.13
             ref: master
